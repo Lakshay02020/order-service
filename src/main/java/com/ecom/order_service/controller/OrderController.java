@@ -11,15 +11,17 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/orders")
+@RequestMapping("/api/order")
 @Slf4j
+@CrossOrigin(origins = "http://localhost:4200")
+
 public class OrderController {
 
     @Autowired
     private OrderService orderService;
 
     // 1. Place Order
-    @PostMapping
+    @PostMapping("/placeOrder")
     public ResponseEntity<OrderDto> placeOrder(@RequestBody OrderDto orderDto) {
         log.info("Placing new order for user: {}", orderDto.getUserId());
         return ResponseEntity.ok(orderService.createOrder(orderDto));
