@@ -4,9 +4,11 @@ import com.ecom.order_service.constants.OrderStatus;
 import com.ecom.order_service.dto.OrderDto;
 import com.ecom.order_service.entity.Order;
 import com.ecom.order_service.exception.ResourceNotFoundException;
+import com.ecom.order_service.feign.CartFeignProvider;
 import com.ecom.order_service.helper.OrderMapper;
 import com.ecom.order_service.repository.OrderRepository;
 import com.ecom.order_service.service.OrderService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,14 +23,36 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
+    private final CartFeignProvider cartFeignProvider;
 
     @Override
+    @Transactional
     public OrderDto createOrder(OrderDto orderDto) {
-        log.info("Creating new order for user: {}", orderDto.getUserId());
-        Order order = OrderMapper.toEntity(orderDto);
-        Order savedOrder = orderRepository.save(order);
-        return OrderMapper.toDto(savedOrder);
+        if (orderDto == null || orderDto.getUserId() == null || orderDto.getItems() == null || orderDto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Invalid order data. UserId and items are required.");
+        }
+
+        try {
+            log.info("Creating new order for user: {}", orderDto.getUserId());
+
+            Order order = OrderMapper.toEntity(orderDto);
+            Order savedOrder = orderRepository.save(order);
+
+            try {
+                cartFeignProvider.clearCart(orderDto.getUserId());
+                log.info("Cart cleared successfully for user: {}", orderDto.getUserId());
+            } catch (Exception e) {
+                log.error("Failed to clear cart for user {}: {}", orderDto.getUserId(), e.getMessage());
+            }
+
+            return OrderMapper.toDto(savedOrder);
+
+        } catch (Exception e) {
+            log.error("Failed to create order for user {}: {}", orderDto.getUserId(), e.getMessage(), e);
+            throw new RuntimeException("Failed to create order. Please try again later.", e);
+        }
     }
+
 
     @Override
     public OrderDto getOrderById(Long orderId) {
