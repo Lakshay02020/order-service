@@ -2,6 +2,7 @@ package com.ecom.order_service.controller;
 
 import com.ecom.order_service.dto.OrderDto;
 import com.ecom.order_service.dto.OrderStatusUpdateRequest;
+import com.ecom.order_service.feign.EmailFeignProvider;
 import com.ecom.order_service.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,5 +57,12 @@ public class OrderController {
         log.info("Deleting order with ID: {}", orderId);
         orderService.deleteOrder(orderId);
         return ResponseEntity.ok("Order deleted successfully.");
+    }
+
+    EmailFeignProvider emailFeignProvider;
+    @GetMapping("/ping")
+    public String ping(){
+        emailFeignProvider.sendMail("lakshay02singla@gmail.com", "sad", "sub", null);
+        return "SENT";
     }
 }

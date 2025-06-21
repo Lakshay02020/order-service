@@ -5,12 +5,15 @@ import com.ecom.order_service.dto.OrderDto;
 import com.ecom.order_service.entity.Order;
 import com.ecom.order_service.exception.ResourceNotFoundException;
 import com.ecom.order_service.feign.CartFeignProvider;
+import com.ecom.order_service.feign.EmailFeignProvider;
 import com.ecom.order_service.helper.OrderMapper;
 import com.ecom.order_service.repository.OrderRepository;
 import com.ecom.order_service.service.OrderService;
+import feign.FeignException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -24,6 +27,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
     private final CartFeignProvider cartFeignProvider;
+    private final EmailFeignProvider emailFeignProvider;
 
     @Override
     @Transactional
@@ -38,6 +42,8 @@ public class OrderServiceImpl implements OrderService {
             Order order = OrderMapper.toEntity(orderDto);
             Order savedOrder = orderRepository.save(order);
 
+            log.info("Send email after successfully placing the order");
+            notifyCustomerViaEmail(order);
             try {
                 cartFeignProvider.clearCart(orderDto.getUserId());
                 log.info("Cart cleared successfully for user: {}", orderDto.getUserId());
@@ -50,6 +56,47 @@ public class OrderServiceImpl implements OrderService {
         } catch (Exception e) {
             log.error("Failed to create order for user {}: {}", orderDto.getUserId(), e.getMessage(), e);
             throw new RuntimeException("Failed to create order. Please try again later.", e);
+        }
+    }
+
+    @Async
+    private void notifyCustomerViaEmail(Order order) {
+//        String email = order.getCustomerEmail(); // or use a fixed one for testing
+        String email = "lakshay02singla@gmail.com";
+        String subject = "🛒 Order Confirmation - Order #" + order.getId();
+
+        String body = String.format(
+                "Dear Customer,\n\n"
+                        + "Thank you for placing an order with us! 🎉\n\n"
+                        + "Here are your order details:\n"
+                        + "---------------------------------\n"
+                        + "Order ID       : %s\n"
+                        + "Order Date     : %s\n"
+                        + "Payment Mode   : %s\n"
+                        + "Payment Status : %s\n"
+                        + "Amount Paid    : ₹%.2f\n"
+                        + "Items Ordered  : %d item(s)\n\n"
+                        + "Shipping Address:\n%s\n\n"
+                        + "We'll notify you again once your order is shipped. 🚚\n\n"
+                        + "Thanks for shopping with us!\n"
+                        + "Team %s",
+                order.getId(),
+//                order.get().toString(),
+                "5:30 PM",
+                order.getPaymentMode(),
+"PAID",
+//                order.getPaymentStatus(),
+                order.getTotalAmount(),
+                order.getItems().size(),
+                order.getShippingAddress(),
+                "YourCompanyName"
+        );
+
+        log.info(body);
+        try{
+        emailFeignProvider.sendMail(email, body, subject, null);
+        }catch (FeignException.FeignClientException exception){
+            log.info("Feign Exception");
         }
     }
 
