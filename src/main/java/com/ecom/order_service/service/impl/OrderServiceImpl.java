@@ -47,7 +47,7 @@ public class OrderServiceImpl implements OrderService {
             Order savedOrder = orderRepository.save(order);
 
             log.info("Send email after successfully placing the order");
-//            notifyCustomerViaEmail(order);
+            notifyCustomerViaEmail(order);
             try {
                 cartFeignProvider.clearCart(orderDto.getUserId());
                 log.info("Cart cleared successfully for user: {}", orderDto.getUserId());
