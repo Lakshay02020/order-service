@@ -66,7 +66,7 @@ public class OrderServiceImpl implements OrderService {
     @Async
     private void notifyCustomerViaEmail(Order order) {
 //        String email = order.getCustomerEmail(); // or use a fixed one for testing
-        String email = "lakshay02singla@gmail.com";
+        String email = order.getDeliveryEmail();
         String subject = "🛒 Order Confirmation - Order #" + order.getId();
 
         String body = String.format(

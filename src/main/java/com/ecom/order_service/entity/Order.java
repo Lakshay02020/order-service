@@ -35,6 +35,7 @@ public class Order {
     private String deliveryZipCode;
     private String deliveryCountry;
     private String deliveryPhone;
+    private String deliveryEmail;
 
     // Payment Details
     @Enumerated(EnumType.STRING)

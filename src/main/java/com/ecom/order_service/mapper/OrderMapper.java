@@ -55,6 +55,7 @@ public class OrderMapper {
                 .deliveryZipCode(dto.getDeliveryDto().getDeliveryZip())
                 .deliveryCountry(dto.getDeliveryDto().getCountry())
                 .deliveryPhone(dto.getDeliveryDto().getPhone())
+                .deliveryEmail(dto.getDeliveryDto().getEmail())
 
                 // Payment Details
                 .paymentMode(PaymentMode.valueOf(dto.getPaymentDto().getPaymentMode()))
