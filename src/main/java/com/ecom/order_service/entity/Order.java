@@ -1,6 +1,7 @@
 package com.ecom.order_service.entity;
 
 import com.ecom.order_service.constants.OrderStatus;
+import com.ecom.order_service.constants.PaymentMode;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -25,7 +26,20 @@ public class Order {
     private String userId;
     private Double totalAmount;
     private String shippingAddress;
-    private String paymentMode;
+
+    // Delivery Details
+    private String deliveryName;
+    private String deliveryAddress;
+    private String deliveryCity;
+    private String deliveryState;
+    private String deliveryZipCode;
+    private String deliveryCountry;
+    private String deliveryPhone;
+
+    // Payment Details
+    @Enumerated(EnumType.STRING)
+    private PaymentMode paymentMode;
+    private String razorpayId;  // Razorpay payment id, etc.
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;

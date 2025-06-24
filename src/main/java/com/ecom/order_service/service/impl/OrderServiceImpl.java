@@ -1,12 +1,15 @@
 package com.ecom.order_service.service.impl;
 
 import com.ecom.order_service.constants.OrderStatus;
+import com.ecom.order_service.dto.DeliveryDto;
+import com.ecom.order_service.dto.OrderDetailDto;
 import com.ecom.order_service.dto.OrderDto;
+import com.ecom.order_service.dto.PaymentDto;
 import com.ecom.order_service.entity.Order;
 import com.ecom.order_service.exception.ResourceNotFoundException;
 import com.ecom.order_service.feign.CartFeignProvider;
 import com.ecom.order_service.feign.EmailFeignProvider;
-import com.ecom.order_service.helper.OrderMapper;
+import com.ecom.order_service.mapper.OrderMapper;
 import com.ecom.order_service.repository.OrderRepository;
 import com.ecom.order_service.service.OrderService;
 import feign.FeignException;
@@ -17,6 +20,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -31,19 +35,19 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDto createOrder(OrderDto orderDto) {
-        if (orderDto == null || orderDto.getUserId() == null || orderDto.getItems() == null || orderDto.getItems().isEmpty()) {
-            throw new IllegalArgumentException("Invalid order data. UserId and items are required.");
-        }
+    public OrderDto createOrder(OrderDetailDto orderDetailDto) {
+        log.info(orderDetailDto.toString());
+        OrderDto orderDto = orderDetailDto.getOrderDto();
+        log.info(orderDetailDto.getDeliveryDto().getDeliveryZip());
+        validateData(orderDetailDto);
 
         try {
-            log.info("Creating new order for user: {}", orderDto.getUserId());
-
-            Order order = OrderMapper.toEntity(orderDto);
+            Order order = OrderMapper.toEntity(orderDetailDto);
+            order.setStatus(OrderStatus.PLACED);
             Order savedOrder = orderRepository.save(order);
 
             log.info("Send email after successfully placing the order");
-            notifyCustomerViaEmail(order);
+//            notifyCustomerViaEmail(order);
             try {
                 cartFeignProvider.clearCart(orderDto.getUserId());
                 log.info("Cart cleared successfully for user: {}", orderDto.getUserId());
@@ -74,22 +78,20 @@ public class OrderServiceImpl implements OrderService {
                         + "Order Date     : %s\n"
                         + "Payment Mode   : %s\n"
                         + "Payment Status : %s\n"
-                        + "Amount Paid    : ₹%.2f\n"
-                        + "Items Ordered  : %d item(s)\n\n"
+                        + "Order Amount    : ₹%.2f\n"
+                        + "Total Items Ordered  : %d item(s)\n\n"
                         + "Shipping Address:\n%s\n\n"
                         + "We'll notify you again once your order is shipped. 🚚\n\n"
                         + "Thanks for shopping with us!\n"
                         + "Team %s",
                 order.getId(),
-//                order.get().toString(),
-                "5:30 PM",
+                order.getCreatedAt(),
                 order.getPaymentMode(),
-"PAID",
-//                order.getPaymentStatus(),
+                Objects.equals(order.getPaymentMode().toString(), "COD") ? "PENDING" : "PAID",
                 order.getTotalAmount(),
                 order.getItems().size(),
-                order.getShippingAddress(),
-                "YourCompanyName"
+                order.getDeliveryAddress(),
+                "The Carpet Factory"
         );
 
         log.info(body);
@@ -100,6 +102,38 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    void validateData(OrderDetailDto orderDetailDto){
+        // Basic Order Checks
+        OrderDto orderDto = orderDetailDto.getOrderDto();
+        if (orderDto == null || orderDto.getUserId() == null || orderDto.getItems() == null || orderDto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Invalid order data. UserId and items are required.");
+        }
+
+        // Delivery Checks
+        DeliveryDto deliveryDto = orderDetailDto.getDeliveryDto();
+        log.info(deliveryDto.toString());
+
+        if (deliveryDto == null ||
+                deliveryDto.getFullName() == null || deliveryDto.getFullName().isEmpty() ||
+                deliveryDto.getCity() == null || deliveryDto.getCity().isEmpty() ||
+                deliveryDto.getState() == null || deliveryDto.getState().isEmpty() ||
+                deliveryDto.getDeliveryZip() == null || deliveryDto.getDeliveryZip().isEmpty() ||
+                deliveryDto.getCountry() == null || deliveryDto.getCountry().isEmpty() ||
+                deliveryDto.getPhone() == null || deliveryDto.getPhone().isEmpty()) {
+            throw new IllegalArgumentException("Incomplete delivery details. All delivery fields are required.");
+        }
+
+        // Payment Checks
+        PaymentDto paymentDto = orderDetailDto.getPaymentDto();
+        log.info(paymentDto.toString());
+        log.info( paymentDto.getPaymentMode(), paymentDto.getPaymentId());
+        if (paymentDto == null ||
+                paymentDto.getPaymentMode() == null || paymentDto.getPaymentMode().isEmpty() ||
+                paymentDto.getPaymentId() == null || paymentDto.getPaymentId().isEmpty()) {
+            throw new IllegalArgumentException("Invalid payment details. Payment mode and payment ID are required.");
+        }
+
+    }
 
     @Override
     public OrderDto getOrderById(Long orderId) {
@@ -124,18 +158,9 @@ public class OrderServiceImpl implements OrderService {
         Order existingOrder = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
 
-        // Update fields
-        if (orderDto.getUserId() != null) existingOrder.setUserId(orderDto.getUserId());
-        if (orderDto.getTotalAmount() != null) existingOrder.setTotalAmount(orderDto.getTotalAmount());
-        if (orderDto.getShippingAddress() != null) existingOrder.setShippingAddress(orderDto.getShippingAddress());
-        if (orderDto.getPaymentMode() != null) existingOrder.setPaymentMode(orderDto.getPaymentMode());
-        if (orderDto.getStatus() != null) existingOrder.setStatus(orderDto.getStatus());
-
-        // Handle items if provided
-        if (orderDto.getItems() != null && !orderDto.getItems().isEmpty()) {
-            existingOrder.setItems(OrderMapper.toEntity(orderDto).getItems());
-            existingOrder.getItems().forEach(item -> item.setOrder(existingOrder));
-        }
+        // Update allow for status field only
+        if (orderDto.getStatus() != null)
+            existingOrder.setStatus(orderDto.getStatus());
 
         Order updatedOrder = orderRepository.save(existingOrder);
         return OrderMapper.toDto(updatedOrder);

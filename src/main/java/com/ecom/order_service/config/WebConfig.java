@@ -14,7 +14,7 @@ public class WebConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**") // or just "/**" for all
-                        .allowedOrigins("https://carpetecom.onrender.com") // Angular frontend
+                        .allowedOrigins("http://localhost:4200") // Angular frontend
                         .allowedMethods("GET", "POST", "PUT", "DELETE")
                         .allowedHeaders("*");
             }

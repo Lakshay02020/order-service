@@ -1,5 +1,6 @@
 package com.ecom.order_service.controller;
 
+import com.ecom.order_service.dto.OrderDetailDto;
 import com.ecom.order_service.dto.OrderDto;
 import com.ecom.order_service.dto.OrderStatusUpdateRequest;
 import com.ecom.order_service.feign.EmailFeignProvider;
@@ -23,9 +24,9 @@ public class OrderController {
 
     // 1. Place Order
     @PostMapping("/placeOrder")
-    public ResponseEntity<OrderDto> placeOrder(@RequestBody OrderDto orderDto) {
-        log.info("Placing new order for user: {}", orderDto.getUserId());
-        return ResponseEntity.ok(orderService.createOrder(orderDto));
+    public ResponseEntity<OrderDto> placeOrder(@RequestBody OrderDetailDto orderDetailDto) {
+        log.info("Placing new order for user: {}", orderDetailDto.getOrderDto().getUserId());
+        return ResponseEntity.ok(orderService.createOrder(orderDetailDto));
     }
 
     // 2. Get Order by ID
